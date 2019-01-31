@@ -1,0 +1,173 @@
+Для тестирования API
+https://www.getpostman.com/
+
+Для автоматической генерации моделей из ответа сервера
+http://www.jsonschema2pojo.org/
+
+Для работы с Retrofit нам потребуется выполнить три шага:
+1)Создать класс модели, который будет перегоняться в JSON
+2)Создать интерфейс, определяющий возможные HTTP Операции (API)
+3)Настроить Retrofit с помощью Retrofit.Builder класса.
+
+
+
+1 подключить Retrofit2 (retrofit2 library)
+
+https://square.github.io/retrofit/
+    // gson with retrofit
+    implementation 'com.squareup.retrofit2:retrofit:2.5.0'
+
+    // преобразовать объекты java в JSON и из него
+    implementation 'com.squareup.retrofit2:converter-gson:2.5.0'
+
+2 В AndroidManifest.xml добавить
+
+    <uses-permission android:name="android.permission.INTERNET"/>
+     //<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+     //<uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
+
+3 Создать интерфейс
+    Создать конечную точку и метод (получить репозитории одного пользователя)
+    параметр пользователя для которого нужно запросить репозиторий
+    наконец, мы должны описать, каков ответ, и это список репозиториев
+
+    Анноторовать метод дополнительной [ мета ] информацией
+        1. Указать что это запрос @GET()
+        2. Указать конечную точку запроса  @GET("/users/fs-opensource/repos") - статический URL
+        3. Передать динамический параметр.
+            Заменить fs-opensource на {user}
+            аннотировать этот параметр аннотацией @Path("user")
+            т.е. скажем ретрофиту, что все что написано здесь (String user)будет заменено здесь {user}
+        4. Сделать метод асинхронным
+         Call<List<GitHubRepo>> Вместо  <List<GitHubRepo>
+
+4 Создать класс GitHubRepo
+
+    В классе описать какие данные поступают с хранилищем GitHub
+        private String name;
+    Добавить геттер:
+          public String getName() {
+                return name;}
+
+5 В  MainActivity:
+    Создать и найти listView
+    1. Создать Retrofit.Builder builder = new Retrofit.Builder().baseUrl()
+    2. Прописать базовый URL "https://api.github.com/"
+    3. Добавить конвертер
+        нам нужен Gson для преобразования между объектами Java и JSON
+            .addConverterFactory()
+        и передать обычный стандартный экземпляр Gson
+            GsonConverterFactory.create()
+
+            получаем:
+                    Retrofit.Builder builder = new Retrofit.Builder()
+                            .baseUrl("https://api.github.com/")
+                            .addConverterFactory(GsonConverterFactory.create());
+
+    4. После создания билдера пришло время создать реальные объекты Retrofit.
+         Retrofit retrofit = builder.build();
+         потом сюда добавится аунтификация и глобальная обработка ошибок
+
+    5. Делаем фактический запрос:
+        1. создать экземпляр нашего клиента GitHub
+            Для этого можем использовать retrofit.create
+            и просто передадим наш класс GitHubClient.class
+            retrofit.create(GitHubClient.class);
+
+        2. Это должен быть  GitHubClient. Просто назовем это "client"
+                    GitHubClient client = retrofit.create(GitHubClient.class);
+        3. Следующий шаг - вызов фактического метода на нашем клиенте, который будет нашим   reposForUser()
+        4. передать имя пользователя гатхаб-а  fs-opensource  ( это просто имя пользователя)
+                        client.reposForUser("fs-opensource");
+
+            это вернет небольшой объект Call<>
+                call = client.reposForUser("fs-opensource");
+                call будет гореть красным. нажимаем на лампочку. Create local variable 'call'
+            и получаем:
+                   Call <List <GitHubRepo>> call = client.reposForUser("fs-opensource");
+        5.  Последний шаг истользовать объект Call<>: (Синхронно и асинхронно)
+            Посколькумы находимся в активити => в потоке пользовательского интерфейса,
+             нам нужно выполните его асинхронно с помощью метода ".enqueue()"
+             call.enqueue() ожидает обратого вызова. пишем: new Callback <List <GitHubRepo>>()
+             получаем:
+                    call.enqueue(new Callback <List <GitHubRepo>>() {
+                         @Override
+                         public void onResponse(Call <List <GitHubRepo>> call, Response<List <GitHubRepo>> response) {
+
+                         }
+
+                         @Override
+                         public void onFailure(Call <List <GitHubRepo>> call, Throwable t) {
+
+                         }
+                     });
+             Обратный вызов будет выполне, как только мы получим ответ от сервера
+             Здесь два варианта:
+                onFailure - будет вызываться при сбое в сети (например отсутствие интернета)
+                onResponse - если получим ответ от сервера
+        6. Разберемся с ситуацией сбоя:
+            покажем тост  Toast.makeText(MainActivity.this, "Что-то не так с интернетом", Toast.LENGTH_SHORT).show();
+
+        7. Разберемся с ответом:
+            Используем обект ответа response
+            body() является списком <GitHubRepo>
+            поэтому пишем - List<GitHubRepo> repos = response.body();
+        8. Передача данных в ListView
+
+        public class GitHubRepoAdapter extends ArrayAdapter<githubrepo> {
+
+            private Context context;
+            private List<githubrepo> values;
+
+            public GitHubRepoAdapter(Context context, List<githubrepo> values) {
+                super(context, R.layout.list_item_pagination, values);
+
+                this.context = context;
+                this.values = values;
+            }
+
+            @Override
+            public View getView(int position, View convertView, ViewGroup parent) {
+                View row = convertView;
+
+
+
+
+
+
+
+    // RecyclerView
+
+0 Добавить библиотеку в build.gradle implementation 'com.android.support:recyclerview-v7:28.0.0'
+1 Добавить RV в размеку XML где будет отображаться rv
+2 Создать разметку для одного элемента списка в rv. list_item.xml
+3 В коде Activity (или Fragment-a) :
+    3.1 Объявить переменную RecyclerView recyclerView;
+    3.2 Для фрагмента в onViewCreated
+     recyclerView = getActivity().findViewById(R.id.recycler_container);
+        Для активити как обычно.
+    3.3 Назначить LayoutManager для recyclerView:
+        LinearLayoutManager linearLayoutManager = new LinearLayoutManager(getActivity());
+        recyclerView.setLayoutManager(linearLayoutManager);
+    3.4 Здесь же назначить adapter  recyclerView.
+        создать экземпляр класса RVAdapter
+         RVAdapter rvAdapter = new RVAdapter();
+        recyclerView.setAdapter(adapter); - нужно сделать в самом конце, когда адаптер будет готов
+4 Создать класс Adapter ( RVAdapter )
+    4.1 Создать класс ViewHolder в классе RVAdapter
+    4.2 Унаследовать ViewHolder от RecyclerView.ViewHolder
+    4.3 Создать конструктор
+            class ViewHolder extends RecyclerView.ViewHolder {
+            public ViewHolder(@NonNull View itemView) {
+                 super(itemView);        }   }
+    4.4 Унаследовать RVAdapter от RecyclerView.Adapter <RVAdapter.ViewHolder> ,
+            передавая в качестве параметра RVAdapter.ViewHolder
+    4.5 Имплементировать методы.
+    4.6  В методе onCreateViewHolder
+        public ViewHolder onCreateViewHolder(@NonNull ViewGroup viewGroup, int i) {
+        LayoutInflater inflater = LayoutInflater.from(viewGroup.getContext());
+        View view = inflater.inflate(R.layout.list_item, viewGroup, false);
+        return new ViewHolder(view);
+    4.7 В getItemCount() указать колличество элементов в списке
+    4.8 В onBindViewHolder - установить необходимые данные в элемент списка
+    4.9 В  class ViewHolder в классе RVAdapter объявить и найти поля из list_item.xml для наполнения значениями
